@@ -66,6 +66,7 @@ public class CodePool implements Iterable<CodeFile> {
     TreeWalk treeWalk = new TreeWalk(repo);
     treeWalk.addTree(tree);
     treeWalk.setRecursive(true);
+    // TODO: set root path
     while (treeWalk.next()) {
       ObjectId id = treeWalk.getObjectId(0);
       ObjectLoader loader = repo.open(id);

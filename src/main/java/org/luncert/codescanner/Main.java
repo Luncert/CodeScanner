@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class Main {
   
-  private static final String DEFAULT_CONFIG_NAME = "CodeScanner.conf";
+  private static final String DEFAULT_CONFIG_NAME = "CodeScanner.yml";
   
   public static void main(String[] args) throws FileNotFoundException {
     String configPath = DEFAULT_CONFIG_NAME;
