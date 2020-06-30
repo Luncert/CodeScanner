@@ -1,7 +1,7 @@
 package org.luncert.codescanner;
 
 import com.google.common.collect.ImmutableList;
-import org.luncert.codescanner.impl.OnlyEnglishScanner;
+import org.luncert.codescanner.impl.RegexpScanner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.Map;
 class CodeScannerHolder {
   
   private final List<ICodeScanner> codeScannerChain = ImmutableList.<ICodeScanner>builder()
-      .add(new OnlyEnglishScanner())
+      .add(new RegexpScanner())
       .build();
   
   CodeScannerHolder(Map conf) {

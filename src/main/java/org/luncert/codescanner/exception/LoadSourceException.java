@@ -1,4 +1,4 @@
-package org.luncert.codescanner.impl;
+package org.luncert.codescanner.exception;
 
 public class LoadSourceException extends RuntimeException {
   

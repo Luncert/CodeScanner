@@ -2,3 +2,6 @@ git:
   url: https://github.com/Luncert/CodeScanner
   branch: master
   rootPath: src
+  auth: true
+  delete-on-exit: true
+regexp-scanner: "[^a-zA-Z0-9\\s=.,\\\"\\\\?!:~`@#$%^&*(){}\\[\\]_\\-+';<>/\\|]"

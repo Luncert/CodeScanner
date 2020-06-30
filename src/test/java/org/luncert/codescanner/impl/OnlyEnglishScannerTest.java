@@ -17,7 +17,7 @@ public class OnlyEnglishScannerTest {
   @Test
   public void test() {
     CodeFile codeFile = prepareTestData();
-    OnlyEnglishScanner scanner = new OnlyEnglishScanner();
+    RegexpScanner scanner = new RegexpScanner();
     List<Message> messageList = scanner.process(codeFile);
     
     Assert.assertEquals(1, messageList.size());

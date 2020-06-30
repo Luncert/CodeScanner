@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class Message {
   
-  public static final Message NULL = new Message(-1, -1, -1, null);
+  public static final Message NULL = new Message(-1, -1, -1, null, null, null);
   
   private int lineNum;
   
@@ -20,6 +20,10 @@ public class Message {
   
   // inclusive
   private int end;
+  
+  private String codeFileName;
+  
+  private MessageType type;
   
   private String description;
 }

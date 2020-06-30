@@ -4,17 +4,35 @@ import org.luncert.codescanner.CodeFile;
 import org.luncert.codescanner.CodeLine;
 import org.luncert.codescanner.ICodeScanner;
 import org.luncert.codescanner.Message;
+import org.luncert.codescanner.MessageType;
+import org.luncert.codescanner.exception.InvalidConfigException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
-public class OnlyEnglishScanner implements ICodeScanner {
+public class RegexpScanner implements ICodeScanner {
   
-  private static final Pattern PATTERN = Pattern.compile("[^a-zA-Z0-9\\s=.,\\\"\\\\?!:~`@#$%^&*()_\\-+';<>/]");
+  private static final String ERROR_MESSAGE = "Regexp matched";
   
-  private static final String ERROR_MESSAGE = "";
+  private Pattern regexpPattern;
+  
+  @Override
+  public void init(Map conf) {
+    String exp = (String) conf.get("regexp-scanner");
+    if (exp == null) {
+      throw new InvalidConfigException("key regexp-scanner is not configured");
+    }
+  
+    try {
+      regexpPattern = Pattern.compile(exp);
+    } catch (PatternSyntaxException e) {
+      throw new InvalidConfigException(e);
+    }
+  }
   
   public List<Message> process(CodeFile codeFile) {
     List<Message> messageList = new ArrayList<>();
@@ -23,14 +41,16 @@ public class OnlyEnglishScanner implements ICodeScanner {
     
     for (CodeLine line : codeFile) {
       String source = line.getSource();
-      Matcher matcher = PATTERN.matcher(source);
+      Matcher matcher = regexpPattern.matcher(source);
       while (matcher.find()) {
-        int start = matcher.start() + 1; // col number starts from 1
+        int start = matcher.start(); // range starts from 0
         if (!mergeToLastMessage(lastMessage, line.getLineNum(), start)) {
           lastMessage = Message.builder()
               .lineNum(line.getLineNum())
               .start(start)
               .end(start)
+              .type(MessageType.ERROR)
+              .codeFileName(codeFile.getName())
               .description(ERROR_MESSAGE)
               .build();
           messageList.add(lastMessage);
