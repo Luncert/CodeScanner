@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -28,7 +29,7 @@ public class CodeFile implements Iterable<CodeLine> {
   
   public CodeFile(String filePath, InputStream inputStream) {
     this.filePath = filePath;
-    source = new BufferedReader(new InputStreamReader(inputStream));
+    source = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
   }
   
   /**

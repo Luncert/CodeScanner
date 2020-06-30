@@ -5,6 +5,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
@@ -82,7 +83,7 @@ public class CodePool implements Iterable<CodeFile> {
         repo = cloneRemoteRepository(gitConf);
   
         if (!(boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
-          repoInfoMap.put(url, repo.getDirectory().getAbsolutePath());
+          repoInfoMap.put(url, repo.getWorkTree().getAbsolutePath());
           saveRepoInfo(repoInfoMap);
         }
       }
@@ -92,8 +93,8 @@ public class CodePool implements Iterable<CodeFile> {
       // delete repo if required
       // TODO: update repo info map in .repoInfo
       if ((boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
-        FileUtils.deleteDirectory(repo.getDirectory());
-        log.info("Deleted repo files in {}", repo.getDirectory().getAbsolutePath());
+        FileUtils.deleteDirectory(repo.getWorkTree());
+        log.info("Deleted repo files in {}", repo.getWorkTree().getAbsolutePath());
       }
     } catch (GitAPIException | IOException e) {
       throw new LoadSourceException(e);
@@ -171,6 +172,11 @@ public class CodePool implements Iterable<CodeFile> {
     repositoryBuilder.setMustExist(true);
     repositoryBuilder.setGitDir(repoDirectory);
     Repository repo = repositoryBuilder.build();
+    
+    // pull newest version
+    Git git = new Git(repo);
+    PullCommand cmd = git.pull();
+    cmd.setRebase(true);
     
     log.info("loaded local repository in {}", repoDirectory.getAbsolutePath());
     
