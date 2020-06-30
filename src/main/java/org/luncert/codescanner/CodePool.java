@@ -59,7 +59,7 @@ public class CodePool implements Iterable<CodeFile> {
       if (!(gitConf instanceof Map)) {
         throw new InvalidConfigException("git config should be a map");
       }
-
+      
       loadFromGit((Map) gitConf);
     } else {
       throw new NoSourceConfiguredException();
@@ -76,20 +76,20 @@ public class CodePool implements Iterable<CodeFile> {
       Map<String, String> repoInfoMap = loadRepoInfoMap();
       String repoPath = repoInfoMap.get(url);
       File repoDirectory = repoPath == null ? null : new File(repoPath);
-  
+      
       if (repoDirectory != null && repoDirectory.exists()) {
         repo = loadLocalRepository(repoDirectory);
       } else {
         repo = cloneRemoteRepository(gitConf);
-  
+        
         if (!(boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
           repoInfoMap.put(url, repo.getWorkTree().getAbsolutePath());
           saveRepoInfo(repoInfoMap);
         }
       }
-  
+      
       traverseRepo(gitConf, repo);
-  
+      
       // delete repo if required
       // TODO: update repo info map in .repoInfo
       if ((boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
@@ -141,7 +141,7 @@ public class CodePool implements Iterable<CodeFile> {
   
   private Map<String, String> loadRepoInfoMap() throws IOException {
     File repoInfo = Paths.get(FileUtils.getTempDirectoryPath(), "CodeScanner", ".repoInfo").toFile();
-
+    
     Map<String, String> repoInfoMap;
     
     if (repoInfo.exists()) {
@@ -162,7 +162,7 @@ public class CodePool implements Iterable<CodeFile> {
       // '=' may occur in git url, so we put the key (git url) after the value (repo path)
       builder.append(entry.getValue()).append('=').append(entry.getKey()).append('\n');
     }
-  
+    
     File repoInfo = Paths.get(FileUtils.getTempDirectoryPath(), "CodeScanner", ".repoInfo").toFile();
     FileUtils.writeStringToFile(repoInfo, builder.toString(), Charset.forName("UTF8"));
   }
@@ -193,27 +193,29 @@ public class CodePool implements Iterable<CodeFile> {
     cmd.setURI(url);
     cmd.setBranch((String) gitConf.getOrDefault(CONF_KEY_BRANCH, "master"));
     cmd.setDirectory(workspace);
-  
-    if ((Boolean) gitConf.getOrDefault(CONF_KEY_AUTH, false)) {
-      Pair<String, String> credential = readCredential();
-      cmd.setCredentialsProvider(
-          new UsernamePasswordCredentialsProvider(credential.getLeft(), credential.getRight()));
+    
+    // set credential
+    Map<String, String> auth = (Map) gitConf.get(CONF_KEY_AUTH);
+    if (auth != null) {
+      if (auth.containsKey("token")) {
+        String token = auth.get("token");
+        Objects.requireNonNull(token, "auth token must be not null");
+        cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("token", token));
+      } else {
+        String account = auth.get("account");
+        String password = auth.get("password");
+        Objects.requireNonNull(account);
+        Objects.requireNonNull(password);
+        cmd.setCredentialsProvider(
+            new UsernamePasswordCredentialsProvider(account, password));
+      }
     }
-  
+    
     Git git = cmd.call();
     
     log.info("{} -> {} = OK", url, workspace.getAbsolutePath());
     
     return git.getRepository();
-  }
-  
-  private Pair<String, String> readCredential() {
-    Console console = System.console();
-    System.out.print("your account:");
-    String account = console.readLine();
-    System.out.print("your password:");
-    String password = String.valueOf(console.readPassword());
-    return Pair.of(account, password);
   }
   
   private File getTempWorkspace() {

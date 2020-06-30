@@ -1,9 +1,14 @@
+# clone remote repository
 git:
-  url: https://github.com/Luncert/CodeScanner
+  url: https://github.wdf.sap.corp/SelfBilling/com.sap.cf.sales.self.billing.core
   branch: master
-  rootPath: src
-  auth: false
-  deleteOnExit: true
+  rootPath: service/src
+  auth:
+    account: "******"
+    password: "******"
+#  auth:
+#    token: 9b2bfc28a69cba26dca5c3ef409e2d0b********
+  deleteOnExit: false
 
 # load local repository
 # rootPath
