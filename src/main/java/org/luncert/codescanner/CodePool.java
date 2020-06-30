@@ -2,6 +2,7 @@ package org.luncert.codescanner;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -22,19 +23,26 @@ import org.luncert.codescanner.exception.LoadSourceException;
 
 import javax.annotation.Nonnull;
 import java.io.BufferedReader;
+import java.io.Console;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static org.luncert.codescanner.Constants.CONF_KEY_AUTH;
+import static org.luncert.codescanner.Constants.CONF_KEY_BRANCH;
+import static org.luncert.codescanner.Constants.CONF_KEY_DELETE_ON_EXIT;
+import static org.luncert.codescanner.Constants.CONF_KEY_GIT;
+import static org.luncert.codescanner.Constants.CONF_KEY_ROOT_PATH;
+import static org.luncert.codescanner.Constants.CONF_KEY_URL;
 
 @Slf4j
 public class CodePool implements Iterable<CodeFile> {
@@ -43,10 +51,10 @@ public class CodePool implements Iterable<CodeFile> {
   
   @SuppressWarnings("unchecked")
   void loadWithConfig(Map conf) {
-    if (conf.containsKey("rootPath")) {
-      loadFromFS((String) conf.get("rootPath"), conf);
-    } else if (conf.containsKey("git")) {
-      Object gitConf = conf.get("git");
+    if (conf.containsKey(CONF_KEY_ROOT_PATH)) {
+      loadFromFS((String) conf.get(CONF_KEY_ROOT_PATH), conf);
+    } else if (conf.containsKey(CONF_KEY_GIT)) {
+      Object gitConf = conf.get(CONF_KEY_GIT);
       if (!(gitConf instanceof Map)) {
         throw new InvalidConfigException("git config should be a map");
       }
@@ -58,7 +66,7 @@ public class CodePool implements Iterable<CodeFile> {
   }
   
   private void loadFromGit(Map<String, Object> gitConf) {
-    String url = (String) gitConf.get("url");
+    String url = (String) gitConf.get(CONF_KEY_URL);
     Objects.requireNonNull(url);
     
     // load repo info from fs, map data: git url -> absolute path in fs
@@ -72,15 +80,18 @@ public class CodePool implements Iterable<CodeFile> {
         repo = loadLocalRepository(repoDirectory);
       } else {
         repo = cloneRemoteRepository(gitConf);
-        repoInfoMap.put(url, repo.getDirectory().getAbsolutePath());
-        saveRepoInfo(repoInfoMap);
+  
+        if (!(boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
+          repoInfoMap.put(url, repo.getDirectory().getAbsolutePath());
+          saveRepoInfo(repoInfoMap);
+        }
       }
   
       traverseRepo(gitConf, repo);
   
       // delete repo if required
       // TODO: update repo info map in .repoInfo
-      if ((boolean) gitConf.get("delete-on-exit")) {
+      if ((boolean) gitConf.get(CONF_KEY_DELETE_ON_EXIT)) {
         FileUtils.deleteDirectory(repo.getDirectory());
         log.info("Deleted repo files in {}", repo.getDirectory().getAbsolutePath());
       }
@@ -113,8 +124,9 @@ public class CodePool implements Iterable<CodeFile> {
     treeWalk.setRecursive(true);
     
     // set root path
-    if (gitConf.containsKey("rootPath")) {
-      treeWalk.setFilter(PathFilter.create((String) gitConf.get("rootPath")));
+    String rootPath = (String) gitConf.get(CONF_KEY_ROOT_PATH);
+    if (rootPath != null) {
+      treeWalk.setFilter(PathFilter.create(rootPath));
     }
     
     while (treeWalk.next()) {
@@ -137,7 +149,7 @@ public class CodePool implements Iterable<CodeFile> {
           (line) -> line.substring(0, line.indexOf('=')),
           (line) -> line.substring(line.indexOf('=') + 1)));
     } else {
-      repoInfoMap = Collections.emptyMap();
+      repoInfoMap = new HashMap<>();
     }
     
     return repoInfoMap;
@@ -151,7 +163,7 @@ public class CodePool implements Iterable<CodeFile> {
     }
   
     File repoInfo = Paths.get(FileUtils.getTempDirectoryPath(), "CodeScanner", ".repoInfo").toFile();
-    FileUtils.writeStringToFile(repoInfo, builder.toString(), Charset.defaultCharset());
+    FileUtils.writeStringToFile(repoInfo, builder.toString(), Charset.forName("UTF8"));
   }
   
   private Repository loadLocalRepository(File repoDirectory) throws IOException {
@@ -166,18 +178,20 @@ public class CodePool implements Iterable<CodeFile> {
   }
   
   private Repository cloneRemoteRepository(Map<String, Object> gitConf) throws GitAPIException {
-    String url = (String) gitConf.get("url");
+    String url = (String) gitConf.get(CONF_KEY_URL);
     
     File workspace = getTempWorkspace();
     
     // clone repo into memory
     CloneCommand cmd = Git.cloneRepository();
     cmd.setURI(url);
-    cmd.setBranch((String) gitConf.getOrDefault("branch", "master"));
+    cmd.setBranch((String) gitConf.getOrDefault(CONF_KEY_BRANCH, "master"));
     cmd.setDirectory(workspace);
   
-    if ((Boolean) gitConf.getOrDefault("auth", false)) {
-      cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("Luncert", "Lunaxy428"));
+    if ((Boolean) gitConf.getOrDefault(CONF_KEY_AUTH, false)) {
+      Pair<String, String> credential = readCredential();
+      cmd.setCredentialsProvider(
+          new UsernamePasswordCredentialsProvider(credential.getLeft(), credential.getRight()));
     }
   
     Git git = cmd.call();
@@ -185,6 +199,15 @@ public class CodePool implements Iterable<CodeFile> {
     log.info("{} -> {} = OK", url, workspace.getAbsolutePath());
     
     return git.getRepository();
+  }
+  
+  private Pair<String, String> readCredential() {
+    Console console = System.console();
+    System.out.print("your account:");
+    String account = console.readLine();
+    System.out.print("your password:");
+    String password = String.valueOf(console.readPassword());
+    return Pair.of(account, password);
   }
   
   private File getTempWorkspace() {

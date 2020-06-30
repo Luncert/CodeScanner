@@ -3,5 +3,5 @@ git:
   branch: master
   rootPath: src
   auth: true
-  delete-on-exit: true
+  deleteOnExit: true
 regexp-scanner: "[^a-zA-Z0-9\\s=.,\\\"\\\\?!:~`@#$%^&*(){}\\[\\]_\\-+';<>/\\|]"
